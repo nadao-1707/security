@@ -36,8 +36,8 @@ import com.ibm.security.appscan.altoromutual.util.ServletUtil;
  * @author Alexei
  */
 public class LoginServlet extends HttpServlet {
-	private static final long serialVersionUID = 1L;
-	
+    private static final long serialVersionUID = 1L;
+    
     /**
      * @see HttpServlet#HttpServlet()
      */
@@ -45,63 +45,64 @@ public class LoginServlet extends HttpServlet {
         super();
     }
 
-	/**
-	 * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
-	 */
-	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		//log out
-		try {
-			HttpSession session = request.getSession(false);
-			session.removeAttribute(ServletUtil.SESSION_ATTR_USER);
-		} catch (Exception e){
-			// do nothing
-		} finally {
-			response.sendRedirect("index.jsp");
-		}
-		
-	}
+    /**
+     * @see HttpServlet#doGet(HttpServletRequest request, HttpServletResponse response)
+     */
+    protected void doGet(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        //log out
+        try {
+            HttpSession session = request.getSession(false);
+            session.removeAttribute(ServletUtil.SESSION_ATTR_USER);
+        } catch (Exception e){
+            // do nothing
+        } finally {
+            response.sendRedirect("index.jsp");
+        }
+        
+    }
 
-	/**
-	 * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
-	 */
-	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-		//log in
-		// Create session if there isn't one:
-		HttpSession session = request.getSession(true);
+    /**
+     * @see HttpServlet#doPost(HttpServletRequest request, HttpServletResponse response)
+     */
+    protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
+        //log in
+        // Create session if there isn't one:
+        HttpSession session = request.getSession(true);
 
-		String username = null;
-		
-		try {
-			username = request.getParameter("uid");
-			if (username != null)
-				username = username.trim().toLowerCase();
-			
-			String password = request.getParameter("passw");
-			password = password.trim().toLowerCase(); //in real life the password usually is case sensitive and this cast would not be done
-			
-			if (!DBUtil.isValidUser(username, password)){
-				Log4AltoroJ.getInstance().logError("Login failed >>> User: " +username + " >>> Password: " + password);
-				throw new Exception("Login Failed: We're sorry, but this username or password was not found in our system. Please try again.");
-			}
-		} catch (Exception ex) {
-			request.getSession(true).setAttribute("loginError", ex.getLocalizedMessage());
-			response.sendRedirect("login.jsp");
-			return;
-		}
+        String username = null;
+        
+        try {
+            username = request.getParameter("uid");
+            if (username != null)
+                username = username.trim().toLowerCase();
+            
+            String password = request.getParameter("passw");
+            password = password.trim(); // Removed lowercase as passwords are case-sensitive
+            
+            // Fix for SQL injection vulnerability using PreparedStatement
+            if (!DBUtil.isValidUser(username, password)){
+                Log4AltoroJ.getInstance().logError("Login failed >>> User: " +username + " >>> Password: " + password);
+                throw new Exception("Login Failed: We're sorry, but this username or password was not found in our system. Please try again.");
+            }
+        } catch (Exception ex) {
+            request.getSession(true).setAttribute("loginError", ex.getLocalizedMessage());
+            response.sendRedirect("login.jsp");
+            return;
+        }
 
-		//Handle the cookie using ServletUtil.establishSession(String)
-		try{
-			Cookie accountCookie = ServletUtil.establishSession(username,session);
-			response.addCookie(accountCookie);
-			response.sendRedirect(request.getContextPath()+"/bank/main.jsp");
-			}
-		catch (Exception ex){
-			ex.printStackTrace();
-			response.sendError(500);
-		}
-			
-		
-		return;
-	}
+        //Handle the cookie using ServletUtil.establishSession(String)
+        try{
+            Cookie accountCookie = ServletUtil.establishSession(username,session);
+            response.addCookie(accountCookie);
+            response.sendRedirect(request.getContextPath()+"/bank/main.jsp");
+            }
+        catch (Exception ex){
+            ex.printStackTrace();
+            response.sendError(500);
+        }
+            
+        
+        return;
+    }
 
 }

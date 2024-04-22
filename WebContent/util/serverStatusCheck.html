@@ -43,38 +43,54 @@ function StateChangeForJSON()
 		var jsonFetchHostName=jsonObj["HostName"];
 		//get JSON values and output
 		x=document.getElementById('FetchHostName');
-		x.innerHTML=jsonFetchHostName;
+		x.innerHTML = escapeHtml(jsonFetchHostName);
 		x=document.getElementById('FetchHostStatus');
-		x.innerHTML=jsonFetchHostStatus;
+		x.innerHTML = escapeHtml(jsonFetchHostStatus);
 	}
 	else if(xmlHttp.readyState == 4 && xmlHttp.status == 500)
 	{
 		x=document.getElementById('FetchHostName');
-		x.innerHTML=sLastHostName;
+		x.innerHTML = escapeHtml(sLastHostName);
 		x=document.getElementById('FetchHostStatus');
-		x.innerHTML='The service returned an error. Please be patient while our administrators fix the issue.';
+		x.innerHTML = 'The service returned an error. Please be patient while our administrators fix the issue.';
 	}
 	else if(xmlHttp.readyState == 4 && xmlHttp.status == 404)
 	{
 		x=document.getElementById('FetchHostName');
-		x.innerHTML=sLastHostName;
+		x.innerHTML = escapeHtml(sLastHostName);
 		x=document.getElementById('FetchHostStatus');
-		x.innerHTML='The service returned an error. The status service appears to not be available';
+		x.innerHTML = 'The service returned an error. The status service appears to not be available';
 	}
 	else if(xmlHttp.readyState == 4 && xmlHttp.status == 401)
 	{
 		x=document.getElementById('FetchHostName');
-		x.innerHTML=sLastHostName;
+		x.innerHTML = escapeHtml(sLastHostName);
 		x=document.getElementById('FetchHostStatus');
-		x.innerHTML='The service returned a 401 unauthorized error, indicating it was implemented incorrectly';
+		x.innerHTML = 'The service returned a 401 unauthorized error, indicating it was implemented incorrectly';
 	}
 	else if(xmlHttp.readyState == 4 && xmlHttp.status == 302)
 	{
 		x=document.getElementById('FetchHostName');
-		x.innerHTML=sLastHostName;
+		x.innerHTML = escapeHtml(sLastHostName);
 		x=document.getElementById('FetchHostStatus');
-		x.innerHTML='The service returned a 302 redirect, indicating it was implemented incorrectly';
+		x.innerHTML = 'The service returned a 302 redirect, indicating it was implemented incorrectly';
 	}
+}
+
+/**
+ * Escape HTML to prevent XSS
+ * @param input the string to be sanitized
+ * @return sanitized string
+ */
+function escapeHtml(input) {
+    if (input == null) return null;
+    return input
+        .replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&#x27;")
+        .replace("/", "&#x2F;");
 }
 
 
