@@ -111,15 +111,15 @@
 	  * @param input the string to be sanitized
 	  * @return sanitized string
 	  */
-	 private String escapeHtml(String input) {
-		 if (input == null) return null;
-		 return input
-			 .replace("&", "&amp;")
-			 .replace("<", "&lt;")
-			 .replace(">", "&gt;")
-			 .replace("\"", "&quot;")
-			 .replace("'", "&#x27;")
-			 .replace("/", "&#x2F;");
-	 }
+	  private String escapeHtml(String input) {
+		if (input == null) return null;
+		return input
+			.replace("&", "&amp;")
+			.replace("<", "&lt;")
+			.replace(">", "&gt;")
+			.replace("\"", "&quot;")
+			.replace("'", "&#x27;")
+			.replace("/", "&#x2F;");
+	}
  }
  

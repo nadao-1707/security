@@ -10,33 +10,37 @@
   <script>
 
     function go() {
-	    var iPos = document.URL.indexOf("url=")+4;
-    	var sDst = document.URL.substring(iPos,document.URL.length); 
-        if (window.opener) {
-      		window.opener.location.href = sDst;
-      		cl();
-        } else {
-        	window.location.href = sDst;
-        }
+      var iPos = document.URL.indexOf("url=") + 4;
+      var sDst = document.URL.substring(iPos, document.URL.length); 
+      if (window.opener) {
+        window.opener.location.href = sDst;
+        cl();
+      } else {
+        window.location.href = sDst;
+      }
     }
 
     function cl() {
       window.close();
     }
 
-    var iPos = document.URL.indexOf("url=")+4;
-  	var sDst = document.URL.substring(iPos,document.URL.length);
-    // if redirection is in the application's domain, don't ask for authorization
-	if ( sDst.indexOf("http") == 0 && sDst.indexOf(document.location.hostname) != -1 ) {
-		if (window.opener) {
-      		window.opener.location.href = "http" + sDst.substring(4);
-      		cl();
+    function validateAndRedirect() {
+      var iPos = document.URL.indexOf("url=") + 4;
+      var sDst = document.URL.substring(iPos, document.URL.length);
+      // if redirection is in the application's domain, don't ask for authorization
+      if (sDst.indexOf("http") == 0 && sDst.indexOf(document.location.hostname) != -1) {
+        if (window.opener) {
+          window.opener.location.href = "http" + sDst.substring(4);
+          cl();
         } else {
-        	window.location.href = "http" + sDst.substring(4);
+          window.location.href = "http" + sDst.substring(4);
         }
-	}
+      } else {
+        alert("The URL is not allowed.");
+      }
+    }
 
-	</script>
+  </script>
 </head>
 
 <body bgcolor=#FFFFFF link="#5811B0" vlink="#5811B0" leftmargin="0" topmargin="0" marginwidth="0" marginheight="0">
@@ -45,7 +49,7 @@
   <table width=90% border=0>
     <tr>
       <td>
-        <p>This hyperlink allows you to access a third party website:
+        <p>This hyperlink allows you to access a third-party website:
         <br /><br />
         <b><script>document.write(encodeURI(sDst));</script></b>
         <br /><br />
@@ -54,8 +58,8 @@
         <br /><br />
         Click OK to continue or Cancel to remain on altoromutual.com.
         </p>
-        <a href="#" onclick="go();return false;"><img src="images/ok.gif" id="ok" alt="ok" border="0"></a>
-        <a href="#" onclick="cl();return false;"><img src="images/cancel.gif" id="cancel" alt="cancel" border="0"></a>
+        <a href="#" onclick="validateAndRedirect(); return false;"><img src="images/ok.gif" id="ok" alt="ok" border="0"></a>
+        <a href="#" onclick="cl(); return false;"><img src="images/cancel.gif" id="cancel" alt="cancel" border="0"></a>
       </td>
     </tr>
   </table>
@@ -64,10 +68,3 @@
 
 </body>
 </html>
-
-
-
-
-
-
-
