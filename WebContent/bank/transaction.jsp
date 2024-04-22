@@ -123,9 +123,9 @@ IBM AltoroJ
 		<table border="0" style="padding-bottom:10px;">
 		    <tr>
 		        <td valign=top>After</td>
-		        <td><input id="startDate" name="startDate" type="text" value="<%=(request.getParameter("startDate")==null)?"":request.getParameter("startDate")%>"/><br /><span class="credit">yyyy-mm-dd</span></td>
+		        <td><input id="startDate" name="startDate" type="text" value="<%= (request.getParameter("startDate")==null) ? "" : request.getParameter("startDate").replaceAll("[<>]", "") %>"/><br /><span class="credit">yyyy-mm-dd</span></td>
 		        <td valign=top>Before</td>
-		        <td><input name="endDate" id="endDate" type="text" value="<%=(request.getParameter("endDate")==null)?"":request.getParameter("endDate") %>"/><br /><span class="credit">yyyy-mm-dd</span></td>
+		        <td><input name="endDate" id="endDate" type="text" value="<%= (request.getParameter("endDate")==null) ? "" : request.getParameter("endDate").replaceAll("[<>]", "") %>"/><br /><span class="credit">yyyy-mm-dd</span></td>
 		        <td valign=top><input type=submit value=Submit /></td>
 		    </tr>
 		</table>
@@ -159,4 +159,4 @@ IBM AltoroJ
     </td>	
 </div>
 
-<jsp:include page="/footer.jspf"/>  
+<jsp:include page="/footer.jspf"/>
