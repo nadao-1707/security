@@ -75,13 +75,13 @@ public class LoginServlet extends HttpServlet {
             username = request.getParameter("uid");
             if (username != null)
                 username = username.trim().toLowerCase();
-            
+    
             String password = request.getParameter("passw");
             password = password.trim(); // Removed lowercase as passwords are case-sensitive
-            
+    
             // Fix for SQL injection vulnerability using PreparedStatement
-            if (!DBUtil.isValidUser(username, password)){
-                Log4AltoroJ.getInstance().logError("Login failed >>> User: " +username + " >>> Password: " + password);
+            if (!DBUtil.isValidUser(username, password)) {
+                Log4AltoroJ.getInstance().logError("Login failed >>> User: " + username + " >>> Password: " + password);
                 throw new Exception("Login Failed: We're sorry, but this username or password was not found in our system. Please try again.");
             }
         } catch (Exception ex) {
@@ -89,14 +89,18 @@ public class LoginServlet extends HttpServlet {
             response.sendRedirect("login.jsp");
             return;
         }
-
-        //Handle the cookie using ServletUtil.establishSession(String)
-        try{
-            Cookie accountCookie = ServletUtil.establishSession(username,session);
+    
+        // Handle the cookie using ServletUtil.establishSession(String)
+        try {
+            Cookie accountCookie = ServletUtil.establishSession(username, session);
+    
+            // Make the cookie secure and HttpOnly
+            accountCookie.setSecure(true);
+            accountCookie.setHttpOnly(true);
+    
             response.addCookie(accountCookie);
-            response.sendRedirect(request.getContextPath()+"/bank/main.jsp");
-            }
-        catch (Exception ex){
+            response.sendRedirect(request.getContextPath() + "/bank/main.jsp");
+        } catch (Exception ex) {
             ex.printStackTrace();
             response.sendError(500);
         }

@@ -88,15 +88,14 @@ public class ServletUtil {
 	 */
 	public static String[] searchArticles(String query, String path) {
 		ArrayList<String> results = new ArrayList<String>();
-
+	
 		File file = new File(path);
 		Document document;
 		try {
-			document = DocumentBuilderFactory.newInstance()
-					.newDocumentBuilder().parse(file);
+			document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file);
 			// root node
 			NodeList nodes = document.getElementsByTagName("news");
-
+	
 			if (nodes.getLength() == 1) {
 				nodes = nodes.item(0).getChildNodes();
 				for (int i = 0; i < nodes.getLength(); i++) {
@@ -107,40 +106,40 @@ public class ServletUtil {
 						Boolean isPublic = null;
 						for (int x = 0; x < innerNodes.getLength(); x++) {
 							try {
-								if ("title".equals(innerNodes.item(x)
-										.getNodeName())) {
-									title = innerNodes.item(x).getFirstChild()
-											.getNodeValue();
-								} else if ("isPublic".equals(innerNodes.item(x)
-										.getNodeName())) {
-									isPublic = Boolean.parseBoolean(innerNodes
-											.item(x).getFirstChild()
-											.getNodeValue());
+								if ("title".equals(innerNodes.item(x).getNodeName())) {
+									title = innerNodes.item(x).getFirstChild().getNodeValue();
+								} else if ("isPublic".equals(innerNodes.item(x).getNodeName())) {
+									isPublic = Boolean.parseBoolean(innerNodes.item(x).getFirstChild().getNodeValue());
 								}
-
+	
 								if (title != null && isPublic != null) {
-									if (isPublic && title.contains(query)) {
+									if (isPublic && title.contains(sanitizeInput(query))) {
 										results.add(title);
 									}
-
+	
 									break;
 								}
 							} catch (Exception e) {
-								//do nothing
+								// do nothing
 							}
 						}
 					}
 				}
 			}
-
+	
 		} catch (Exception e) {
-			//do nothing
+			// do nothing
 		}
-
+	
 		if (results.size() == 0)
 			return null;
-
+	
 		return results.toArray(new String[results.size()]);
+	}
+	
+	private static String sanitizeInput(String input) {
+		// Sanitize the input by removing illegal XML characters
+		return input.replaceAll("[\\x00-\\x08\\x0b-\\x0c\\x0e-\\x1f]", "");
 	}
 
 	/**
