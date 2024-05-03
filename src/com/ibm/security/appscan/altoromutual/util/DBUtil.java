@@ -232,35 +232,33 @@ public class DBUtil {
 	 * @return user information
 	 * @throws SQLException
 	 */
-	public static User getUserInfo(String username) throws SQLException {
-        if (username == null || username.trim().length() == 0)
-            return null;
+	public static User getUserInfo(String username) throws SQLException{
+		if (username == null || username.trim().length() == 0)
+			return null; 
+		
+		Connection connection = getConnection();
+		Statement statement = connection.createStatement();
+		ResultSet resultSet =statement.executeQuery("SELECT FIRST_NAME,LAST_NAME,ROLE FROM PEOPLE WHERE USER_ID = '"+ username +"' "); /* BAD - user input should always be sanitized */
 
-        try (Connection connection = getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement("SELECT FIRST_NAME, LAST_NAME, ROLE FROM PEOPLE WHERE USER_ID = ?")) {
-            preparedStatement.setString(1, username);
-            try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                if (resultSet.next()) {
-                    String firstName = resultSet.getString("FIRST_NAME");
-                    String lastName = resultSet.getString("LAST_NAME");
-                    String roleString = resultSet.getString("ROLE");
-
-                    if (firstName == null || lastName == null)
-                        return null;
-
-                    User user = new User(username, firstName, lastName);
-
-                    if (roleString != null && roleString.equalsIgnoreCase("admin"))
-                        user.setRole(Role.Admin);
-
-                    return user;
-                }
-            }
-        }
-        return null;
-    }
-
-
+		String firstName = null;
+		String lastName = null;
+		String roleString = null;
+		if (resultSet.next()){
+			firstName = resultSet.getString("FIRST_NAME");
+			lastName = resultSet.getString("LAST_NAME");
+			roleString = resultSet.getString("ROLE");
+		}
+		
+		if (firstName == null || lastName == null)
+			return null;
+		
+		User user = new User(username, firstName, lastName);
+		
+		if (roleString.equalsIgnoreCase("admin"))
+			user.setRole(Role.Admin);
+		
+		return user;
+	}
 
 	/**
 	 * Get all accounts for the specified user
@@ -268,25 +266,27 @@ public class DBUtil {
 	 * @return
 	 * @throws SQLException
 	 */
-	public static Account[] getAccounts(String username) throws SQLException{
-		if (username == null || username.trim().length() == 0)
-			return null; 
-		
-		Connection connection = getConnection();
-		Statement statement = connection.createStatement();
-		ResultSet resultSet =statement.executeQuery("SELECT ACCOUNT_ID, ACCOUNT_NAME, BALANCE FROM ACCOUNTS WHERE USERID = '"+ username +"' "); /* BAD - user input should always be sanitized */
+	public static Account[] getAccounts(String username) throws SQLException {
+        if (username == null || username.trim().length() == 0)
+            return null;
 
-		ArrayList<Account> accounts = new ArrayList<Account>(3);
-		while (resultSet.next()){
-			long accountId = resultSet.getLong("ACCOUNT_ID");
-			String name = resultSet.getString("ACCOUNT_NAME");
-			double balance = resultSet.getDouble("BALANCE"); 
-			Account newAccount = new Account(accountId, name, balance);
-			accounts.add(newAccount);
-		}
-		
-		return accounts.toArray(new Account[accounts.size()]);
-	}
+        try (Connection connection = getConnection();
+             PreparedStatement preparedStatement = connection.prepareStatement("SELECT ACCOUNT_ID, ACCOUNT_NAME, BALANCE FROM ACCOUNTS WHERE USERID = ?")) {
+            preparedStatement.setString(1, username);
+            try (ResultSet resultSet = preparedStatement.executeQuery()) {
+                ArrayList<Account> accounts = new ArrayList<>();
+                while (resultSet.next()) {
+                    long accountId = resultSet.getLong("ACCOUNT_ID");
+                    String name = resultSet.getString("ACCOUNT_NAME");
+                    double balance = resultSet.getDouble("BALANCE");
+                    Account newAccount = new Account(accountId, name, balance);
+                    accounts.add(newAccount);
+                }
+                return accounts.toArray(new Account[0]);
+            }
+        }
+    }
+
 
 	/**
 	 * Transfer funds between specified accounts
