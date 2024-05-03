@@ -96,7 +96,7 @@ public class DBUtil {
 		}
 	}
 
-	public static Connection getConnection() throws SQLException{
+	private static Connection getConnection() throws SQLException{
 
 		if (instance == null)
 			instance = new DBUtil();
@@ -170,387 +170,362 @@ public class DBUtil {
 	 * Retrieve feedback details
 	 * @param feedbackId specific feedback ID to retrieve or Feedback.FEEDBACK_ALL to retrieve all stored feedback submissions
 	 */
-	public static ArrayList<Feedback> getFeedback(long feedbackId) {
-        ArrayList<Feedback> feedbackList = new ArrayList<>();
+	public static ArrayList<Feedback> getFeedback (long feedbackId){
+		ArrayList<Feedback> feedbackList = new ArrayList<Feedback>();
+		
+		try { 
+			Connection connection = getConnection();
+			Statement statement = connection.createStatement();
+			
+			String query = "SELECT * FROM FEEDBACK";
+			
+			if (feedbackId != Feedback.FEEDBACK_ALL){
+				query = query + " WHERE FEEDBACK_ID = "+ feedbackId +"";
+			}
+			
+			ResultSet resultSet = statement.executeQuery(query);
+	
+			while (resultSet.next()){
+				String name = resultSet.getString("NAME");
+				String email = resultSet.getString("EMAIL");
+				String subject = resultSet.getString("SUBJECT");
+				String message = resultSet.getString("COMMENTS");
+				long id = resultSet.getLong("FEEDBACK_ID");
+				Feedback feedback = new Feedback(id, name, email, subject, message);
+				feedbackList.add(feedback);
+			}
+		} catch (SQLException e) {
+			Log4AltoroJ.getInstance().logError("Error retrieving feedback: " + e.getMessage());
+		}
+		
+		return feedbackList;
+	}
+	
+	
+	/**
+	 * Authenticate user
+	 * @param user user name
+	 * @param password password
+	 * @return true if valid user, false otherwise
+	 * @throws SQLException
+	 */
+	public static boolean isValidUser(String user, String password) throws SQLException{
+		if (user == null || password == null || user.trim().length() == 0 || password.trim().length() == 0)
+			return false; 
+		
+		Connection connection = getConnection();
+		Statement statement = connection.createStatement();
+		
+		ResultSet resultSet =statement.executeQuery("SELECT COUNT(*)FROM PEOPLE WHERE USER_ID = '"+ user +"' AND PASSWORD='" + password + "'"); /* BAD - user input should always be sanitized */
+		
+		if (resultSet.next()){
+			
+				if (resultSet.getInt(1) > 0)
+					return true;
+		}
+		return false;
+	}
+	
 
-        try {
-            Connection connection = getConnection();
-            PreparedStatement preparedStatement;
-            String query = "SELECT * FROM FEEDBACK";
-            if (feedbackId != Feedback.FEEDBACK_ALL) {
-                query = query + " WHERE FEEDBACK_ID = ?";
-                preparedStatement = connection.prepareStatement(query);
-                preparedStatement.setLong(1, feedbackId);
-            } else {
-                preparedStatement = connection.prepareStatement(query);
-            }
-            ResultSet resultSet = preparedStatement.executeQuery();
+	/**
+	 * Get user information
+	 * @param username
+	 * @return user information
+	 * @throws SQLException
+	 */
+	public static User getUserInfo(String username) throws SQLException{
+		if (username == null || username.trim().length() == 0)
+			return null; 
+		
+		Connection connection = getConnection();
+		Statement statement = connection.createStatement();
+		ResultSet resultSet =statement.executeQuery("SELECT FIRST_NAME,LAST_NAME,ROLE FROM PEOPLE WHERE USER_ID = '"+ username +"' "); /* BAD - user input should always be sanitized */
 
-            while (resultSet.next()) {
-                String name = resultSet.getString("NAME");
-                String email = resultSet.getString("EMAIL");
-                String subject = resultSet.getString("SUBJECT");
-                String message = resultSet.getString("COMMENTS");
-                long id = resultSet.getLong("FEEDBACK_ID");
-                Feedback feedback = new Feedback(id, name, email, subject, message);
-                feedbackList.add(feedback);
-            }
-            resultSet.close();
-            preparedStatement.close();
-            connection.close();
-        } catch (SQLException e) {
-            Log4AltoroJ.getInstance().logError("Error retrieving feedback: " + e.getMessage());
-        }
+		String firstName = null;
+		String lastName = null;
+		String roleString = null;
+		if (resultSet.next()){
+			firstName = resultSet.getString("FIRST_NAME");
+			lastName = resultSet.getString("LAST_NAME");
+			roleString = resultSet.getString("ROLE");
+		}
+		
+		if (firstName == null || lastName == null)
+			return null;
+		
+		User user = new User(username, firstName, lastName);
+		
+		if (roleString.equalsIgnoreCase("admin"))
+			user.setRole(Role.Admin);
+		
+		return user;
+	}
 
-        return feedbackList;
-    }
+	/**
+	 * Get all accounts for the specified user
+	 * @param username
+	 * @return
+	 * @throws SQLException
+	 */
+	public static Account[] getAccounts(String username) throws SQLException{
+		if (username == null || username.trim().length() == 0)
+			return null; 
+		
+		Connection connection = getConnection();
+		Statement statement = connection.createStatement();
+		ResultSet resultSet =statement.executeQuery("SELECT ACCOUNT_ID, ACCOUNT_NAME, BALANCE FROM ACCOUNTS WHERE USERID = '"+ username +"' "); /* BAD - user input should always be sanitized */
 
-    public static boolean isValidUser(String user, String password) throws SQLException {
-        if (user == null || password == null || user.trim().length() == 0 || password.trim().length() == 0)
-            return false;
+		ArrayList<Account> accounts = new ArrayList<Account>(3);
+		while (resultSet.next()){
+			long accountId = resultSet.getLong("ACCOUNT_ID");
+			String name = resultSet.getString("ACCOUNT_NAME");
+			double balance = resultSet.getDouble("BALANCE"); 
+			Account newAccount = new Account(accountId, name, balance);
+			accounts.add(newAccount);
+		}
+		
+		return accounts.toArray(new Account[accounts.size()]);
+	}
 
-        try (Connection connection = getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement("SELECT COUNT(*) FROM PEOPLE WHERE USER_ID = ? AND PASSWORD = ?")) {
-            preparedStatement.setString(1, user);
-            preparedStatement.setString(2, password);
-            try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                return resultSet.next() && resultSet.getInt(1) > 0;
-            }
-        }
-    }
-
-    public static User getUserInfo(String username) throws SQLException {
-        if (username == null || username.trim().length() == 0)
-            return null;
-
-        try (Connection connection = getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement("SELECT FIRST_NAME, LAST_NAME, ROLE FROM PEOPLE WHERE USER_ID = ?")) {
-            preparedStatement.setString(1, username);
-            try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                if (resultSet.next()) {
-                    String firstName = resultSet.getString("FIRST_NAME");
-                    String lastName = resultSet.getString("LAST_NAME");
-                    String roleString = resultSet.getString("ROLE");
-
-                    if (firstName == null || lastName == null)
-                        return null;
-
-                    User user = new User(username, firstName, lastName);
-
-                    if (roleString != null && roleString.equalsIgnoreCase("admin"))
-                        user.setRole(Role.Admin);
-
-                    return user;
-                }
-            }
-        }
-        return null;
-    }
-
-    public static Account[] getAccounts(String username) throws SQLException {
-        if (username == null || username.trim().length() == 0)
-            return null;
-
-        try (Connection connection = getConnection();
-             PreparedStatement preparedStatement = connection.prepareStatement("SELECT ACCOUNT_ID, ACCOUNT_NAME, BALANCE FROM ACCOUNTS WHERE USERID = ?")) {
-            preparedStatement.setString(1, username);
-            try (ResultSet resultSet = preparedStatement.executeQuery()) {
-                ArrayList<Account> accounts = new ArrayList<>();
-                while (resultSet.next()) {
-                    long accountId = resultSet.getLong("ACCOUNT_ID");
-                    String name = resultSet.getString("ACCOUNT_NAME");
-                    double balance = resultSet.getDouble("BALANCE");
-                    Account newAccount = new Account(accountId, name, balance);
-                    accounts.add(newAccount);
-                }
-                return accounts.toArray(new Account[0]);
-            }
-        }
-    }
-
+	/**
+	 * Transfer funds between specified accounts
+	 * @param username
+	 * @param creditActId
+	 * @param debitActId
+	 * @param amount
+	 * @return
+	 */
 	public static String transferFunds(String username, long creditActId, long debitActId, double amount) {
+				
+		try {
+			
+			User user = getUserInfo(username);
+			
+			Connection connection = getConnection();
+			Statement statement = connection.createStatement();
 
-    try {
+			Account debitAccount = Account.getAccount(debitActId);
+			Account creditAccount = Account.getAccount(creditActId);
 
-        User user = getUserInfo(username);
+			if (debitAccount == null){
+				return "Originating account is invalid";
+			} 
+			
+			if (creditAccount == null)
+				return "Destination account is invalid";
+			
+			java.sql.Timestamp date = new Timestamp(new java.util.Date().getTime());
+			
+			//in real life we would want to do these updates and transaction entry creation
+			//as one atomic operation
+			
+			long userCC = user.getCreditCardNumber();
+			
+			/* this is the account that the payment will be made from, thus negative amount!*/
+			double debitAmount = -amount; 
+			/* this is the account that the payment will be made to, thus positive amount!*/
+			double creditAmount = amount;
+			
+			/* Credit card account balance is the amount owed, not amount owned 
+			 * (reverse of other accounts). Therefore we have to process balances differently*/
+			if (debitAccount.getAccountId() == userCC)
+				debitAmount = -debitAmount;
+		
+			//create transaction record
+			statement.execute("INSERT INTO TRANSACTIONS (ACCOUNTID, DATE, TYPE, AMOUNT) VALUES ("+debitAccount.getAccountId()+",'"+date+"',"+((debitAccount.getAccountId() == userCC)?"'Cash Advance'":"'Withdrawal'")+","+debitAmount+")," +
+					  "("+creditAccount.getAccountId()+",'"+date+"',"+((creditAccount.getAccountId() == userCC)?"'Payment'":"'Deposit'")+","+creditAmount+")"); 	
 
-        Connection connection = getConnection();
-        PreparedStatement statement = connection.prepareStatement(
-                "INSERT INTO TRANSACTIONS (ACCOUNTID, DATE, TYPE, AMOUNT) VALUES (?, ?, ?, ?), (?, ?, ?, ?)");
+			Log4AltoroJ.getInstance().logTransaction(debitAccount.getAccountId()+" - "+ debitAccount.getAccountName(), creditAccount.getAccountId()+" - "+ creditAccount.getAccountName(), amount);
+			
+			if (creditAccount.getAccountId() == userCC)
+				 creditAmount = -creditAmount;
+			
+			//add cash advance fee since the money transfer was made from the credit card 
+			if (debitAccount.getAccountId() == userCC){
+				statement.execute("INSERT INTO TRANSACTIONS (ACCOUNTID, DATE, TYPE, AMOUNT) VALUES ("+debitAccount.getAccountId()+",'"+date+"','Cash Advance Fee',"+CASH_ADVANCE_FEE+")");
+				debitAmount += CASH_ADVANCE_FEE;
+				Log4AltoroJ.getInstance().logTransaction(String.valueOf(userCC), "N/A", CASH_ADVANCE_FEE);
+			}
+						
+			//update account balances
+			statement.execute("UPDATE ACCOUNTS SET BALANCE = " + (debitAccount.getBalance()+debitAmount) + " WHERE ACCOUNT_ID = " + debitAccount.getAccountId());
+			statement.execute("UPDATE ACCOUNTS SET BALANCE = " + (creditAccount.getBalance()+creditAmount) + " WHERE ACCOUNT_ID = " + creditAccount.getAccountId());
+			
+			return null;
+			
+		} catch (SQLException e) {
+			return "Transaction failed. Please try again later.";
+		}
+	}
 
-        Account debitAccount = Account.getAccount(debitActId);
-        Account creditAccount = Account.getAccount(creditActId);
 
-        if (debitAccount == null) {
-            return "Originating account is invalid";
-        }
+	/**
+	 * Get transaction information for the specified accounts in the date range (non-inclusive of the dates)
+	 * @param startDate
+	 * @param endDate
+	 * @param accounts
+	 * @param rowCount
+	 * @return
+	 */
+	public static Transaction[] getTransactions(String startDate, String endDate, Account[] accounts, int rowCount) throws SQLException {
+		
+		if (accounts == null || accounts.length == 0)
+			return null;
 
-        if (creditAccount == null)
-            return "Destination account is invalid";
+			Connection connection = getConnection();
 
-        java.sql.Timestamp date = new Timestamp(new java.util.Date().getTime());
+			
+			Statement statement = connection.createStatement();
+			
+			if (rowCount > 0)
+				statement.setMaxRows(rowCount);
 
-        // in real life we would want to do these updates and transaction entry creation
-        // as one atomic operation
+			StringBuffer acctIds = new StringBuffer();
+			acctIds.append("ACCOUNTID = " + accounts[0].getAccountId());
+			for (int i=1; i<accounts.length; i++){
+				acctIds.append(" OR ACCOUNTID = "+accounts[i].getAccountId());	
+			}
+			
+			String dateString = null;
+			
+			if (startDate != null && startDate.length()>0 && endDate != null && endDate.length()>0){
+				dateString = "DATE BETWEEN '" + startDate + " 00:00:00' AND '" + endDate + " 23:59:59'";
+			} else if (startDate != null && startDate.length()>0){
+				dateString = "DATE > '" + startDate +" 00:00:00'";
+			} else if (endDate != null && endDate.length()>0){
+				dateString = "DATE < '" + endDate + " 23:59:59'";
+			}
+			
+			String query = "SELECT * FROM TRANSACTIONS WHERE (" + acctIds.toString() + ") " + ((dateString==null)?"": "AND (" + dateString + ") ") + "ORDER BY DATE DESC" ;
+			ResultSet resultSet = null;
+			
+			try {
+				resultSet = statement.executeQuery(query);
+			} catch (SQLException e){
+				int errorCode = e.getErrorCode();
+				if (errorCode == 30000)
+					throw new SQLException("Date-time query must be in the format of yyyy-mm-dd HH:mm:ss", e);
+				
+				throw e;
+			}
+			ArrayList<Transaction> transactions = new ArrayList<Transaction>();
+			while (resultSet.next()){
+				int transId = resultSet.getInt("TRANSACTION_ID");
+				long actId = resultSet.getLong("ACCOUNTID");
+				Timestamp date = resultSet.getTimestamp("DATE");
+				String desc = resultSet.getString("TYPE");
+				double amount = resultSet.getDouble("AMOUNT");
+				transactions.add(new Transaction(transId, actId, date, desc, amount));
+			}
+			
+			return transactions.toArray(new Transaction[transactions.size()]); 
+	}
 
-        long userCC = user.getCreditCardNumber();
+	public static String[] getBankUsernames() {
+		
+		try {
+			Connection connection = getConnection();
+			Statement statement = connection.createStatement();
+			//at the moment this query limits transfers to
+			//transfers between two user accounts
+			ResultSet resultSet =statement.executeQuery("SELECT USER_ID FROM PEOPLE"); 
 
-        /* this is the account that the payment will be made from, thus negative amount!*/
-        double debitAmount = -amount;
-        /* this is the account that the payment will be made to, thus positive amount!*/
-        double creditAmount = amount;
+			ArrayList<String> users = new ArrayList<String>();
+			
+			while (resultSet.next()){
+				String name = resultSet.getString("USER_ID");
+				users.add(name);
+			}
+			
+			return users.toArray(new String[users.size()]);
+		} catch (SQLException e){
+			e.printStackTrace();
+			return new String[0];
+		}
+	}
+	
+	public static Account getAccount(long accountNo) throws SQLException {
 
-        /* Credit card account balance is the amount owed, not amount owned
-         * (reverse of other accounts). Therefore we have to process balances differently*/
-        if (debitAccount.getAccountId() == userCC)
-            debitAmount = -debitAmount;
+		Connection connection = getConnection();
+		Statement statement = connection.createStatement();
+		ResultSet resultSet =statement.executeQuery("SELECT ACCOUNT_NAME, BALANCE FROM ACCOUNTS WHERE ACCOUNT_ID = "+ accountNo +" "); /* BAD - user input should always be sanitized */
 
-        // create transaction record
-        statement.setLong(1, debitAccount.getAccountId());
-        statement.setTimestamp(2, date);
-        statement.setString(3, (debitAccount.getAccountId() == userCC) ? "Cash Advance" : "Withdrawal");
-        statement.setDouble(4, debitAmount);
-        statement.setLong(5, creditAccount.getAccountId());
-        statement.setTimestamp(6, date);
-        statement.setString(7, (creditAccount.getAccountId() == userCC) ? "Payment" : "Deposit");
-        statement.setDouble(8, creditAmount);
-        statement.executeUpdate();
+		ArrayList<Account> accounts = new ArrayList<Account>(3);
+		while (resultSet.next()){
+			String name = resultSet.getString("ACCOUNT_NAME");
+			double balance = resultSet.getDouble("BALANCE"); 
+			Account newAccount = new Account(accountNo, name, balance);
+			accounts.add(newAccount);
+		}
+		
+		if (accounts.size()==0)
+			return null;
+		
+		return accounts.get(0);
+	}
 
-        Log4AltoroJ.getInstance().logTransaction(debitAccount.getAccountId() + " - " + debitAccount.getAccountName(),
-                creditAccount.getAccountId() + " - " + creditAccount.getAccountName(), amount);
+	public static String addAccount(String username, String acctType) {
+		try {
+			Connection connection = getConnection();
+			Statement statement = connection.createStatement();
+			statement.execute("INSERT INTO ACCOUNTS (USERID,ACCOUNT_NAME,BALANCE) VALUES ('"+username+"','"+acctType+"', 0)");
+			return null;
+		} catch (SQLException e){
+			return e.toString();
+		}
+	}
+	
+	public static String addSpecialUser(String username, String password, String firstname, String lastname) {
+		try {
+			Connection connection = getConnection();
+			Statement statement = connection.createStatement();
+			statement.execute("INSERT INTO SPECIAL_CUSTOMERS (USER_ID,PASSWORD,FIRST_NAME,LAST_NAME,ROLE) VALUES ('"+username+"','"+password+"', '"+firstname+"', '"+lastname+"','user')");
+			return null;
+		} catch (SQLException e){
+			return e.toString();
+			
+		}
+	}
+	
+	public static String addUser(String username, String password, String firstname, String lastname) {
+		try {
+			Connection connection = getConnection();
+			Statement statement = connection.createStatement();
+			statement.execute("INSERT INTO PEOPLE (USER_ID,PASSWORD,FIRST_NAME,LAST_NAME,ROLE) VALUES ('"+username+"','"+password+"', '"+firstname+"', '"+lastname+"','user')");
+			return null;
+		} catch (SQLException e){
+			return e.toString();
+			
+		}
+	}
+	
+	public static String changePassword(String username, String password) {
+		try {
+			Connection connection = getConnection();
+			Statement statement = connection.createStatement();
+			statement.execute("UPDATE PEOPLE SET PASSWORD = '"+ password +"' WHERE USER_ID = '"+username+"'");
+			return null;
+		} catch (SQLException e){
+			return e.toString();
+			
+		}
+	}
 
-        if (creditAccount.getAccountId() == userCC)
-            creditAmount = -creditAmount;
-
-        // add cash advance fee since the money transfer was made from the credit card
-        if (debitAccount.getAccountId() == userCC) {
-            statement = connection.prepareStatement(
-                    "INSERT INTO TRANSACTIONS (ACCOUNTID, DATE, TYPE, AMOUNT) VALUES (?, ?, ?, ?)");
-            statement.setLong(1, debitAccount.getAccountId());
-            statement.setTimestamp(2, date);
-            statement.setString(3, "Cash Advance Fee");
-            statement.setDouble(4, CASH_ADVANCE_FEE);
-            statement.executeUpdate();
-
-            debitAmount += CASH_ADVANCE_FEE;
-            Log4AltoroJ.getInstance().logTransaction(String.valueOf(userCC), "N/A", CASH_ADVANCE_FEE);
-        }
-
-        // update account balances
-        statement = connection.prepareStatement("UPDATE ACCOUNTS SET BALANCE = ? WHERE ACCOUNT_ID = ?");
-        statement.setDouble(1, debitAccount.getBalance() + debitAmount);
-        statement.setLong(2, debitAccount.getAccountId());
-        statement.executeUpdate();
-
-        statement.setDouble(1, creditAccount.getBalance() + creditAmount);
-        statement.setLong(2, creditAccount.getAccountId());
-        statement.executeUpdate();
-
-        return null;
-
-    } catch (SQLException e) {
-        return "Transaction failed. Please try again later.";
-    }
-}
-
-/**
- * Get transaction information for the specified accounts in the date range (non-inclusive of the dates)
- * 
- * @param startDate
- * @param endDate
- * @param accounts
- * @param rowCount
- * @return
- */
-public static Transaction[] getTransactions(String startDate, String endDate, Account[] accounts, int rowCount)
-        throws SQLException {
-
-    if (accounts == null || accounts.length == 0)
-        return null;
-
-    Connection connection = getConnection();
-
-    PreparedStatement statement = null;
-    ResultSet resultSet = null;
-
-    try {
-        statement = connection.prepareStatement(
-                "SELECT * FROM TRANSACTIONS WHERE (ACCOUNTID = ? OR ACCOUNTID = ?) AND (DATE BETWEEN ? AND ?) ORDER BY DATE DESC");
-
-        if (rowCount > 0)
-            statement.setMaxRows(rowCount);
-
-        StringBuffer acctIds = new StringBuffer();
-        acctIds.append("ACCOUNTID = " + accounts[0].getAccountId());
-
-        for (int i = 1; i < accounts.length; i++) {
-            acctIds.append(" OR ACCOUNTID = ?");
-            statement.setLong(i + 1, accounts[i].getAccountId());
-        }
-
-        String dateString = null;
-
-        if (startDate != null && startDate.length() > 0 && endDate != null && endDate.length() > 0) {
-            dateString = "DATE BETWEEN ? AND ?";
-            statement.setString(accounts.length + 1, startDate + " 00:00:00");
-            statement.setString(accounts.length + 2, endDate + " 23:59:59");
-        } else if (startDate != null && startDate.length() > 0) {
-            dateString = "DATE > ?";
-            statement.setString(accounts.length + 1, startDate + " 00:00:00");
-        } else if (endDate != null && endDate.length() > 0) {
-            dateString = "DATE < ?";
-            statement.setString(accounts.length + 1, endDate + " 23:59:59");
-        }
-
-        statement.setString(1, accounts[0].getAccountId());
-        statement.setString(2, accounts[1].getAccountId());
-
-        String query = "SELECT * FROM TRANSACTIONS WHERE (" + acctIds.toString() + ") "
-                + ((dateString == null) ? "" : "AND (" + dateString + ") ") + "ORDER BY DATE DESC";
-
-        resultSet = statement.executeQuery();
-
-        ArrayList<Transaction> transactions = new ArrayList<Transaction>();
-        while (resultSet.next()) {
-            int transId = resultSet.getInt("TRANSACTION_ID");
-            long actId = resultSet.getLong("ACCOUNTID");
-            Timestamp date = resultSet.getTimestamp("DATE");
-            String desc = resultSet.getString("TYPE");
-            double amount = resultSet.getDouble("AMOUNT");
-            transactions.add(new Transaction(transId, actId, date, desc, amount));
-        }
-
-        return transactions.toArray(new Transaction[transactions.size()]);
-    } catch (SQLException e) {
-        int errorCode = e.getErrorCode();
-        if (errorCode == 30000)
-            throw new SQLException("Date-time query must be in the format of yyyy-mm-dd HH:mm:ss", e);
-        throw e;
-    } finally {
-        if (resultSet != null) {
-            resultSet.close();
-        }
-        if (statement != null) {
-            statement.close();
-        }
-        connection.close();
-    }
-}
-
-public static String[] getBankUsernames() {
-    try {
-        Connection connection = getConnection();
-        PreparedStatement statement = connection.prepareStatement("SELECT USER_ID FROM PEOPLE");
-        ResultSet resultSet = statement.executeQuery();
-
-        ArrayList<String> users = new ArrayList<String>();
-
-        while (resultSet.next()) {
-            String name = resultSet.getString("USER_ID");
-            users.add(name);
-        }
-
-        return users.toArray(new String[users.size()]);
-    } catch (SQLException e) {
-        e.printStackTrace();
-        return new String[0];
-    }
-}
-
-public static Account getAccount(long accountNo) throws SQLException {
-    Connection connection = getConnection();
-    PreparedStatement statement = connection.prepareStatement("SELECT ACCOUNT_NAME, BALANCE FROM ACCOUNTS WHERE ACCOUNT_ID = ?");
-    statement.setLong(1, accountNo);
-    ResultSet resultSet = statement.executeQuery();
-
-    ArrayList<Account> accounts = new ArrayList<Account>(3);
-    while (resultSet.next()) {
-        String name = resultSet.getString("ACCOUNT_NAME");
-        double balance = resultSet.getDouble("BALANCE");
-        Account newAccount = new Account(accountNo, name, balance);
-        accounts.add(newAccount);
-    }
-
-    if (accounts.size() == 0)
-        return null;
-
-    return accounts.get(0);
-}
-
-public static String addAccount(String username, String acctType) {
-    try {
-        Connection connection = getConnection();
-        PreparedStatement statement = connection.prepareStatement("INSERT INTO ACCOUNTS (USERID,ACCOUNT_NAME,BALANCE) VALUES (?, ?, 0)");
-        statement.setString(1, username);
-        statement.setString(2, acctType);
-        statement.execute();
-        return null;
-    } catch (SQLException e) {
-        return e.toString();
-    }
-}
-
-public static String addSpecialUser(String username, String password, String firstname, String lastname) {
-    try {
-        Connection connection = getConnection();
-        PreparedStatement statement = connection.prepareStatement("INSERT INTO SPECIAL_CUSTOMERS (USER_ID,PASSWORD,FIRST_NAME,LAST_NAME,ROLE) VALUES (?, ?, ?, ?, 'user')");
-        statement.setString(1, username);
-        statement.setString(2, password);
-        statement.setString(3, firstname);
-        statement.setString(4, lastname);
-        statement.execute();
-        return null;
-    } catch (SQLException e) {
-        return e.toString();
-    }
-}
-
-public static String addUser(String username, String password, String firstname, String lastname) {
-    try {
-        Connection connection = getConnection();
-        PreparedStatement statement = connection.prepareStatement("INSERT INTO PEOPLE (USER_ID,PASSWORD,FIRST_NAME,LAST_NAME,ROLE) VALUES (?, ?, ?, ?, 'user')");
-        statement.setString(1, username);
-        statement.setString(2, password);
-        statement.setString(3, firstname);
-        statement.setString(4, lastname);
-        statement.execute();
-        return null;
-    } catch (SQLException e) {
-        return e.toString();
-    }
-}
-
-public static String changePassword(String username, String password) {
-    try {
-        Connection connection = getConnection();
-        PreparedStatement statement = connection.prepareStatement("UPDATE PEOPLE SET PASSWORD = ? WHERE USER_ID = ?");
-        statement.setString(1, password);
-        statement.setString(2, username);
-        statement.execute();
-        return null;
-    } catch (SQLException e) {
-        return e.toString();
-    }
-}
-
-public static long storeFeedback(String name, String email, String subject, String comments) {
-    try {
-        Connection connection = getConnection();
-        PreparedStatement statement = connection.prepareStatement("INSERT INTO FEEDBACK (NAME,EMAIL,SUBJECT,COMMENTS) VALUES (?, ?, ?, ?)", Statement.RETURN_GENERATED_KEYS);
-        statement.setString(1, name);
-        statement.setString(2, email);
-        statement.setString(3, subject);
-        statement.setString(4, comments);
-        statement.executeUpdate();
-        ResultSet rs = statement.getGeneratedKeys();
-        long id = -1;
-        if (rs.next()) {
-            id = rs.getLong(1);
-        }
-        return id;
-    } catch (SQLException e) {
-        Log4AltoroJ.getInstance().logError(e.getMessage());
-        return -1;
-    }
-}
+	
+	public static long storeFeedback(String name, String email, String subject, String comments) {
+		try{ 
+			Connection connection = getConnection();
+			Statement statement = connection.createStatement();
+			statement.execute("INSERT INTO FEEDBACK (NAME,EMAIL,SUBJECT,COMMENTS) VALUES ('"+name+"', '"+email+"', '"+subject+"', '"+comments+"')", Statement.RETURN_GENERATED_KEYS);
+			ResultSet rs= statement.getGeneratedKeys();
+			long id = -1;
+			if (rs.next()){
+				id = rs.getLong(1);
+			}
+			return id;
+		} catch (SQLException e){
+			Log4AltoroJ.getInstance().logError(e.getMessage());
+			return -1;
+		}
+	}
 }
